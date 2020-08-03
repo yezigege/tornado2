@@ -6,6 +6,7 @@ import json
 from tornado import web
 from tornado.web import HTTPError
 from client import mysql, redis
+from pycket.session import SessionMixin
 
 
 class APIError(HTTPError):
@@ -13,7 +14,7 @@ class APIError(HTTPError):
         super(APIError, self).__init__(status_code=200, reason=json.dumps(data))
 
 
-class BaseHandler(web.RequestHandler):
+class BaseHandler(web.RequestHandler, SessionMixin):
 
     def send_str(self, json_str):
         self.set_header('Content-Type', 'application/json')
@@ -26,7 +27,9 @@ class BaseHandler(web.RequestHandler):
         self.write(json_str)
         self.finish()
 
-    def send_json(self, data={}, errcode=200, errmsg=''):
+    def send_json(self, data=None, errcode=200, errmsg=''):
+        if data is None:
+            data = {}
         res = {
             'errcode': errcode,
             'errmsg': errmsg or '请求成功'
@@ -49,6 +52,15 @@ class BaseHandler(web.RequestHandler):
 
     def on_finish(self):
         mysql.study.close()
+
+    def get_current_user(self):
+        # current_user = self.get_secure_cookie('ID')  # 获取加密的cookie
+        # print(current_user)
+        # if current_user:
+        #     return current_user
+        # return None
+        # session是一种会话状态，跟数据库的session可能不一样
+        return self.session.get('user_info', None)
 
     def get_real_ip(self):
         req_headers = self.request.headers
